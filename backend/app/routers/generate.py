@@ -2,33 +2,28 @@ from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
 from app.services.github_service import GitHubService
-from app.services.o3_mini_openai_service import OpenAIo3Service
+from app.services.o1_mini_openai_service import OpenAIO1Service  # Updated import
 from app.prompts import (
     SYSTEM_FIRST_PROMPT,
     SYSTEM_SECOND_PROMPT,
     SYSTEM_THIRD_PROMPT,
     ADDITIONAL_SYSTEM_INSTRUCTIONS_PROMPT,
 )
-from anthropic._exceptions import RateLimitError
 from pydantic import BaseModel
 from functools import lru_cache
 import re
 import json
 import asyncio
 
-# from app.services.claude_service import ClaudeService
-# from app.core.limiter import limiter
-
 load_dotenv()
 
-router = APIRouter(prefix="/generate", tags=["Claude"])
+router = APIRouter(prefix="/generate", tags=["Local LLM"])
 
 # Initialize services
-# claude_service = ClaudeService()
-o3_service = OpenAIo3Service()
+o1_service = OpenAIO1Service()  # Use the updated OpenAIO1Service
 
 
-# cache github data to avoid double API calls from cost and generate
+# Cache GitHub data to avoid double API calls from cost and generate
 @lru_cache(maxsize=100)
 def get_cached_github_data(username: str, repo: str, github_pat: str | None = None):
     # Create a new service instance for each call with the appropriate PAT
@@ -50,44 +45,6 @@ class ApiRequest(BaseModel):
     instructions: str = ""
     api_key: str | None = None
     github_pat: str | None = None
-
-
-@router.post("/cost")
-# @limiter.limit("5/minute") # TEMP: disable rate limit for growth??
-async def get_generation_cost(request: Request, body: ApiRequest):
-    try:
-        # Get file tree and README content
-        github_data = get_cached_github_data(body.username, body.repo, body.github_pat)
-        file_tree = github_data["file_tree"]
-        readme = github_data["readme"]
-
-        # Calculate combined token count
-        # file_tree_tokens = claude_service.count_tokens(file_tree)
-        # readme_tokens = claude_service.count_tokens(readme)
-
-        file_tree_tokens = o3_service.count_tokens(file_tree)
-        readme_tokens = o3_service.count_tokens(readme)
-
-        # CLAUDE: Calculate approximate cost
-        # Input cost: $3 per 1M tokens ($0.000003 per token)
-        # Output cost: $15 per 1M tokens ($0.000015 per token)
-        # input_cost = ((file_tree_tokens * 2 + readme_tokens) + 3000) * 0.000003
-        # output_cost = 3500 * 0.000015
-        # estimated_cost = input_cost + output_cost
-
-        # Input cost: $1.1 per 1M tokens ($0.0000011 per token)
-        # Output cost: $4.4 per 1M tokens ($0.0000044 per token)
-        input_cost = ((file_tree_tokens * 2 + readme_tokens) + 3000) * 0.0000011
-        output_cost = (
-            8000 * 0.0000044
-        )  # 8k just based on what I've seen (reasoning is expensive)
-        estimated_cost = input_cost + output_cost
-
-        # Format as currency string
-        cost_string = f"${estimated_cost:.2f} USD"
-        return {"cost": cost_string}
-    except Exception as e:
-        return {"error": str(e)}
 
 
 def process_click_events(diagram: str, username: str, repo: str, branch: str) -> str:
@@ -116,6 +73,7 @@ def process_click_events(diagram: str, username: str, repo: str, branch: str) ->
     return re.sub(click_pattern, replace_path, diagram)
 
 
+
 @router.post("/stream")
 async def generate_stream(request: Request, body: ApiRequest):
     try:
@@ -134,7 +92,7 @@ async def generate_stream(request: Request, body: ApiRequest):
 
         async def event_generator():
             try:
-                # Get cached github data
+                # Get cached GitHub data
                 github_data = get_cached_github_data(
                     body.username, body.repo, body.github_pat
                 )
@@ -148,13 +106,13 @@ async def generate_stream(request: Request, body: ApiRequest):
 
                 # Token count check
                 combined_content = f"{file_tree}\n{readme}"
-                token_count = o3_service.count_tokens(combined_content)
+                token_count = o1_service.count_tokens(combined_content)  # Updated to use o1_service
 
                 if 50000 < token_count < 195000 and not body.api_key:
-                    yield f"data: {json.dumps({'error': f'File tree and README combined exceeds token limit (50,000). Current size: {token_count} tokens. This GitHub repository is too large for my wallet, but you can continue by providing your own OpenAI API key.'})}\n\n"
+                    yield f"data: {json.dumps({'error': f'File tree and README combined exceeds token limit (50,000). Current size: {token_count} tokens. This GitHub repository is too large for my wallet, but you can continue by providing your own API key.'})}\n\n"
                     return
                 elif token_count > 195000:
-                    yield f"data: {json.dumps({'error': f'Repository is too large (>195k tokens) for analysis. OpenAI o3-mini\'s max context length is 200k tokens. Current size: {token_count} tokens.'})}\n\n"
+                    yield f"data: {json.dumps({'error': f'Repository is too large (>195k tokens) for analysis. Local LLM\'s max context length is 200k tokens. Current size: {token_count} tokens.'})}\n\n"
                     return
 
                 # Prepare prompts
@@ -173,19 +131,17 @@ async def generate_stream(request: Request, body: ApiRequest):
                     )
 
                 # Phase 1: Get explanation
-                yield f"data: {json.dumps({'status': 'explanation_sent', 'message': 'Sending explanation request to o3-mini...'})}\n\n"
+                yield f"data: {json.dumps({'status': 'explanation_sent', 'message': 'Sending explanation request to local LLM...'})}\n\n"
                 await asyncio.sleep(0.1)
                 yield f"data: {json.dumps({'status': 'explanation', 'message': 'Analyzing repository structure...'})}\n\n"
                 explanation = ""
-                async for chunk in o3_service.call_o3_api_stream(
+                async for chunk in o1_service.call_o1_api_stream(  # Updated to use o1_service
                     system_prompt=first_system_prompt,
                     data={
                         "file_tree": file_tree,
                         "readme": readme,
                         "instructions": body.instructions,
                     },
-                    api_key=body.api_key,
-                    reasoning_effort="medium",
                 ):
                     explanation += chunk
                     yield f"data: {json.dumps({'status': 'explanation_chunk', 'chunk': chunk})}\n\n"
@@ -195,20 +151,17 @@ async def generate_stream(request: Request, body: ApiRequest):
                     return
 
                 # Phase 2: Get component mapping
-                yield f"data: {json.dumps({'status': 'mapping_sent', 'message': 'Sending component mapping request to o3-mini...'})}\n\n"
+                yield f"data: {json.dumps({'status': 'mapping_sent', 'message': 'Sending component mapping request to local LLM...'})}\n\n"
                 await asyncio.sleep(0.1)
                 yield f"data: {json.dumps({'status': 'mapping', 'message': 'Creating component mapping...'})}\n\n"
                 full_second_response = ""
-                async for chunk in o3_service.call_o3_api_stream(
+                async for chunk in o1_service.call_o1_api_stream(  # Updated to use o1_service
                     system_prompt=SYSTEM_SECOND_PROMPT,
                     data={"explanation": explanation, "file_tree": file_tree},
-                    api_key=body.api_key,
-                    reasoning_effort="low",
                 ):
                     full_second_response += chunk
                     yield f"data: {json.dumps({'status': 'mapping_chunk', 'chunk': chunk})}\n\n"
 
-                # i dont think i need this anymore? but keep it here for now
                 # Extract component mapping
                 start_tag = "<component_mapping>"
                 end_tag = "</component_mapping>"
@@ -219,19 +172,17 @@ async def generate_stream(request: Request, body: ApiRequest):
                 ]
 
                 # Phase 3: Generate Mermaid diagram
-                yield f"data: {json.dumps({'status': 'diagram_sent', 'message': 'Sending diagram generation request to o3-mini...'})}\n\n"
+                yield f"data: {json.dumps({'status': 'diagram_sent', 'message': 'Sending diagram generation request to local LLM...'})}\n\n"
                 await asyncio.sleep(0.1)
                 yield f"data: {json.dumps({'status': 'diagram', 'message': 'Generating diagram...'})}\n\n"
                 mermaid_code = ""
-                async for chunk in o3_service.call_o3_api_stream(
+                async for chunk in o1_service.call_o1_api_stream(  # Updated to use o1_service
                     system_prompt=third_system_prompt,
                     data={
                         "explanation": explanation,
                         "component_mapping": component_mapping_text,
                         "instructions": body.instructions,
                     },
-                    api_key=body.api_key,
-                    reasoning_effort="medium",
                 ):
                     mermaid_code += chunk
                     yield f"data: {json.dumps({'status': 'diagram_chunk', 'chunk': chunk})}\n\n"
@@ -268,3 +219,50 @@ async def generate_stream(request: Request, body: ApiRequest):
         )
     except Exception as e:
         return {"error": str(e)}
+
+
+@router.post("/ask")
+async def ask_question(request: Request, body: ApiRequest):
+    try:
+        # Get cached GitHub data
+        github_data = get_cached_github_data(
+            body.username, body.repo, body.github_pat
+        )
+        file_tree = github_data["file_tree"]
+        readme = github_data["readme"]
+
+        # Combine the file tree and README for context
+        context = f"File Tree:\n{file_tree}\n\nREADME:\n{readme}"
+
+        print(f"Context:\n{context}")
+
+        # Prepare the data dictionary
+        data = {"question": body.instructions, "context": context}
+
+        # Format the user message
+        formatted_message = format_user_message(data)
+        print(f"Formatted Message:\n{formatted_message}")
+
+        # Call the local LLM
+        response = ""
+        async for chunk in o1_service.call_o1_api_stream(
+            system_prompt="Answer the question based on the provided context.",
+            data={"formatted_message": formatted_message},  # Pass the formatted message
+        ):
+            chunk_str = str(chunk)  # Ensure the chunk is a string
+            print(f"Chunk received in /ask endpoint: {chunk_str}")  # Log each chunk
+            response += chunk_str
+            print(f"Updated response: {response}")  # Log the updated response
+
+        print(f"Final Response:\n{response}")    
+        # Return the response
+        return {"answer": response}
+
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def format_user_message(data: dict) -> str:
+    question = data.get("question", "")
+    context = data.get("context", "")
+    return f"Question: {question}\n\nContext: {context}"

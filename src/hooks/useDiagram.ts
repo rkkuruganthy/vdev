@@ -104,8 +104,10 @@ export function useDiagram(username: string, repo: string) {
               // Process each SSE message
               for (const line of lines) {
                 if (line.startsWith("data: ")) {
+                  const rawData = line.slice(6); // Extract the part after "data: "
+                  console.log("Raw SSE Data:", rawData); // Log the raw data
                   try {
-                    const data = JSON.parse(line.slice(6)) as StreamResponse;
+                    const data = JSON.parse(rawData) as StreamResponse;
 
                     // If we receive an error, set loading to false immediately
                     if (data.error) {
@@ -204,7 +206,7 @@ export function useDiagram(username: string, repo: string) {
                         break;
                     }
                   } catch (e) {
-                    console.error("Error parsing SSE message:", e);
+                    console.error("Error parsing SSE message:", e, "Raw Data:", rawData);
                   }
                 }
               }
@@ -278,24 +280,24 @@ export function useDiagram(username: string, repo: string) {
       // }
 
       // Get cost estimate
-      const costEstimate = await getCostOfGeneration(
-        username,
-        repo,
-        "",
-        github_pat ?? undefined,
-      );
+      // const costEstimate = await getCostOfGeneration(
+      //   username,
+      //   repo,
+      //   "",
+      //   github_pat ?? undefined,
+      // );
 
-      if (costEstimate.error) {
-        console.error("Cost estimation failed:", costEstimate.error);
-        // if (costEstimate.requires_api_key) {
-        //   setTokenCount(costEstimate.token_count ?? 0);
-        // }
-        // TODO: come to think of it, why is requires api key based on tokens? this unimplemented option is smarter. Add API key dialog
-        setError(costEstimate.error);
-        return;
-      }
+      // if (costEstimate.error) {
+      //   console.error("Cost estimation failed:", costEstimate.error);
+      //   // if (costEstimate.requires_api_key) {
+      //   //   setTokenCount(costEstimate.token_count ?? 0);
+      //   // }
+      //   // TODO: come to think of it, why is requires api key based on tokens? this unimplemented option is smarter. Add API key dialog
+      //   setError(costEstimate.error);
+      //   return;
+      // }
 
-      setCost(costEstimate.cost ?? "");
+      // setCost(costEstimate.cost ?? "");
 
       // Start streaming generation
       await generateDiagram("", github_pat ?? undefined);

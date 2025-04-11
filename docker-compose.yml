@@ -12,3 +12,5 @@ services:
     environment:
       - ENVIRONMENT=${ENVIRONMENT:-development} # Default to development if not set
     restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway" # For Docker Desktop on Windows and Mac

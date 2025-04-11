@@ -1,10 +1,8 @@
-from openai import OpenAI
 from dotenv import load_dotenv
 from app.utils.format_message import format_user_message
-import tiktoken
+import lmstudio as lms
 import os
-import aiohttp
-import json
+from openai import OpenAI
 from typing import AsyncGenerator
 
 load_dotenv()
@@ -12,59 +10,57 @@ load_dotenv()
 
 class OpenAIO1Service:
     def __init__(self):
-        self.default_client = OpenAI(
-            api_key=os.getenv("OPENAI_API_KEY"),
+        # This must be the *first* SDK interaction (otherwise the SDK will
+        # implicitly attempt to access the default server instance)
+        # Initialize client with Docker-specific IP
+        # Initialize the model using the client
+
+        self.client = OpenAI(
+            base_url="http://host.docker.internal:1234/v1", #Model must be running on localhost:1234
+            api_key="not-needed",
         )
-        self.encoding = tiktoken.get_encoding("o200k_base")  # Encoder for OpenAI models
-        self.base_url = "https://api.openai.com/v1/chat/completions"
+
 
     def call_o1_api(
         self,
         system_prompt: str,
         data: dict,
         api_key: str | None = None,
-    ) -> str:
+    ) -> AsyncGenerator[str, None]:
         """
-        Makes an API call to OpenAI o1-mini and returns the response.
+        Makes a synchronous call to the local LLM model and returns the response.
 
         Args:
             system_prompt (str): The instruction/system prompt
             data (dict): Dictionary of variables to format into the user message
-            api_key (str | None): Optional custom API key
+            api_key (str | None): Optional custom API key (not used for local model)
 
         Returns:
-            str: o1-mini's response text
+            str: Local model's response text
         """
         # Create the user message with the data
         user_message = format_user_message(data)
 
-        # Use custom client if API key provided, otherwise use default
-        client = OpenAI(api_key=api_key) if api_key else self.default_client
+        # Combine the system prompt and user message
+        full_prompt = f"{system_prompt}\n\n{user_message}"
 
         try:
-            print(
-                f"Making non-streaming API call to o1-mini with API key: {'custom key' if api_key else 'default key'}"
+            print("Making synchronous call to the local LLM model...")
+            response = self.client.chat.completions.create(
+                model="deepseek-r1-distill-llama-8b",
+                messages=[{"role": "user", "content": full_prompt}],
+                stream=True
             )
+        
+            print("Call completed successfully")
 
-            completion = client.chat.completions.create(
-                model="o1-mini",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_message},
-                ],
-                max_completion_tokens=12000,  # Adjust as needed
-                temperature=0.2,
-            )
+            if not response:
+                raise ValueError("No response returned from the local model")
 
-            print("API call completed successfully")
-
-            if completion.choices[0].message.content is None:
-                raise ValueError("No content returned from OpenAI o1-mini")
-
-            return completion.choices[0].message.content
+            return response.choices[0].message.content
 
         except Exception as e:
-            print(f"Error in OpenAI o1-mini API call: {str(e)}")
+            print(f"Error in local model call: {str(e)}")
             raise
 
     async def call_o1_api_stream(
@@ -74,88 +70,51 @@ class OpenAIO1Service:
         api_key: str | None = None,
     ) -> AsyncGenerator[str, None]:
         """
-        Makes a streaming API call to OpenAI o1-mini and yields the responses.
+        Simulates a streaming API call to the local LLM model and yields the responses.
 
         Args:
             system_prompt (str): The instruction/system prompt
             data (dict): Dictionary of variables to format into the user message
-            api_key (str | None): Optional custom API key
+            api_key (str | None): Optional custom API key (not used for local model)
 
         Yields:
-            str: Chunks of o1-mini's response text
+            str: Chunks of the local model's response
         """
-        # Create the user message with the data
-        user_message = format_user_message(data)
-
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key or self.default_client.api_key}",
-        }
-
-        payload = {
-            "model": "o1-mini",
-            "messages": [
-                {
-                    "role": "user",
-                    "content": f"""
-                    <VERY_IMPORTANT_SYSTEM_INSTRUCTIONS>
-                    {system_prompt}
-                    </VERY_IMPORTANT_SYSTEM_INSTRUCTIONS>
-                    <USER_INSTRUCTIONS>
-                    {user_message}
-                    </USER_INSTRUCTIONS>
-                    """,
-                },
-            ],
-            "max_completion_tokens": 12000,
-            "stream": True,
-        }
+        # Use the preformatted message if provided, otherwise format the data
+        user_message = data.get("formatted_message") or format_user_message(data)
+        full_prompt = f"{system_prompt}\n\n{user_message}"
+        print(f"Full prompt: {full_prompt}")
 
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    self.base_url, headers=headers, json=payload
-                ) as response:
+            print("Making streaming call to the local LLM model...")
+            response = self.client.chat.completions.create(
+                model="deepseek-r1-distill-llama-8b",
+                messages=[{"role": "user", "content": full_prompt}],
+                stream=True  # Enable streaming
+            )
 
-                    if response.status != 200:
-                        error_text = await response.text()
-                        print(f"Error response: {error_text}")
-                        raise ValueError(
-                            f"OpenAI API returned status code {response.status}: {error_text}"
-                        )
+            # Iterate over the streaming response using a regular for loop
+            for chunk in response:
+                # print(f"Raw chunk: {chunk}")  # Log the raw chunk
+                print(f"Chunk type: {type(chunk)}")
+                try:
+                    # Access the structured chunk object
+                    if hasattr(chunk, "choices") and chunk.choices:
+                        delta = chunk.choices[0].delta
+                        if hasattr(delta, "content") and delta.content:
+                            content = delta.content
+                            print(f"Yielding content: {content}")
+                            yield content
+                        else:
+                            print("Empty content in chunk, skipping...")
+                    else:
+                        print("Invalid chunk structure, skipping...")
+                except Exception as e:
+                    print(f"Error processing chunk: {str(e)}")
+                    continue
 
-                    line_count = 0
-                    async for line in response.content:
-                        line = line.decode("utf-8").strip()
-                        if not line:
-                            continue
-
-                        line_count += 1
-
-                        if line.startswith("data: "):
-                            if line == "data: [DONE]":
-                                break
-                            try:
-                                data = json.loads(line[6:])
-                                content = (
-                                    data.get("choices", [{}])[0]
-                                    .get("delta", {})
-                                    .get("content")
-                                )
-                                if content:
-                                    yield content
-                            except json.JSONDecodeError as e:
-                                print(f"JSON decode error: {e} for line: {line}")
-                                continue
-
-                    if line_count == 0:
-                        print("Warning: No lines received in stream response")
-
-        except aiohttp.ClientError as e:
-            print(f"Connection error: {str(e)}")
-            raise ValueError(f"Failed to connect to OpenAI API: {str(e)}")
         except Exception as e:
-            print(f"Unexpected error in streaming API call: {str(e)}")
+            print(f"Error in local model streaming call: {str(e)}")
             raise
 
     def count_tokens(self, prompt: str) -> int:
@@ -168,5 +127,6 @@ class OpenAIO1Service:
         Returns:
             int: Estimated number of input tokens
         """
-        num_tokens = len(self.encoding.encode(prompt))
+        # Token counting is not directly supported by lmstudio, so use a simple word count
+        num_tokens = len(prompt.split())
         return num_tokens

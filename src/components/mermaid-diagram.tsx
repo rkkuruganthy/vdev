@@ -68,6 +68,8 @@ const MermaidChart = ({ chart, zoomingEnabled = true }: MermaidChartProps) => {
       }
     };
 
+    console.log("Generated Mermaid Code:", chart);
+
     mermaid.contentLoaded();
     // Wait for the SVG to be rendered
     setTimeout(() => {

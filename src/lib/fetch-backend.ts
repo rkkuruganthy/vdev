@@ -164,3 +164,44 @@ export async function getCostOfGeneration(
     return { error: "Failed to get cost estimate." };
   }
 }
+
+export async function askQuestion(
+  username: string,
+  repo: string,
+  question: string,
+  github_pat?: string,
+): Promise<{ answer?: string; error?: string }> {
+  try {
+    const baseUrl =
+      process.env.NEXT_PUBLIC_API_DEV_URL ?? "http://localhost:5432";
+    const url = new URL(`${baseUrl}/generate/ask`);
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        username,
+        repo,
+        instructions: question,
+        github_pat: github_pat,
+      }),
+    });
+
+    if (response.status === 429) {
+      return { error: "Rate limit exceeded. Please try again later." };
+    }
+
+    const data = await response.json();
+
+    if (data.error) {
+      return { error: data.error };
+    }
+
+    return { answer: data.answer };
+  } catch (error) {
+    console.error("Error asking question:", error);
+    return { error: "Failed to ask question. Please try again later." };
+  }
+}
