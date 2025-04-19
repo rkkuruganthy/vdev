@@ -61,8 +61,7 @@ export default function MainCard({
     }
   }, [loading]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAsk = () => {
     setError("");
 
     const githubUrlPattern =
@@ -79,9 +78,35 @@ export default function MainCard({
       setError("Invalid repository URL format");
       return;
     }
+
     const sanitizedUsername = encodeURIComponent(username);
     const sanitizedRepo = encodeURIComponent(repo);
+
     router.push(`/${sanitizedUsername}/${sanitizedRepo}`);
+  };
+
+  const handleGenerate = () => {
+    setError("");
+
+    const githubUrlPattern =
+      /^https?:\/\/github\.com\/([a-zA-Z0-9-_]+)\/([a-zA-Z0-9-_\.]+)\/?$/;
+    const match = githubUrlPattern.exec(repoUrl.trim());
+
+    if (!match) {
+      setError("Please enter a valid GitHub repository URL");
+      return;
+    }
+
+    const [, username, repo] = match || [];
+    if (!username || !repo) {
+      setError("Invalid repository URL format");
+      return;
+    }
+
+    const sanitizedUsername = encodeURIComponent(username);
+    const sanitizedRepo = encodeURIComponent(repo);
+
+    router.push(`/generate/${sanitizedUsername}/${sanitizedRepo}`);
   };
 
   const handleExampleClick = (repoPath: string, e: React.MouseEvent) => {
@@ -95,7 +120,7 @@ export default function MainCard({
 
   return (
     <Card className="relative w-full max-w-3xl border-[3px] border-black bg-purple-200 p-4 shadow-[8px_8px_0_0_#000000] sm:p-8">
-      <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+      <form onSubmit={(e) => e.preventDefault()} className="space-y-4 sm:space-y-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
           <Input
             placeholder="https://github.com/username/repo"
@@ -105,10 +130,19 @@ export default function MainCard({
             required
           />
           <Button
-            type="submit"
+            type="button"
+            onClick={handleAsk}
             className="border-[3px] border-black bg-purple-400 p-4 px-4 text-base text-black shadow-[4px_4px_0_0_#000000] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5 hover:transform hover:bg-purple-400 sm:p-6 sm:px-6 sm:text-lg"
           >
             Ask a Question
+          </Button>
+          
+          <Button
+            type="button"
+            onClick={handleGenerate}
+            className="border-[3px] border-black bg-purple-400 p-4 px-4 text-base text-black shadow-[4px_4px_0_0_#000000] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5 hover:transform hover:bg-purple-400 sm:p-6 sm:px-6 sm:text-lg"
+          >
+            Generate a Diagram
           </Button>
         </div>
 

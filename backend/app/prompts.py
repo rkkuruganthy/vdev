@@ -213,3 +213,10 @@ The instructions will be enclosed in <instructions> tags in the users message. I
 Your response must strictly be just the Mermaid.js code, without any additional text or explanations. Keep as many of the existing click events as possible.
 No code fence or markdown ticks needed, simply return the Mermaid.js code.
 """
+
+SYSTEM_ASK_PROMPT = """
+You are a principal software engineer tasked with answering questions from a user based on the github context provided.
+
+Use the Readme and the file tree provided in the context to answer the question.
+
+"""

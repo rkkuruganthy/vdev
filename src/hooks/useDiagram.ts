@@ -366,15 +366,15 @@ export function useDiagram(username: string, repo: string) {
       //   return;
       // }
 
-      const costEstimate = await getCostOfGeneration(username, repo, "");
+      // const costEstimate = await getCostOfGeneration(username, repo, "");
 
-      if (costEstimate.error) {
-        console.error("Cost estimation failed:", costEstimate.error);
-        setError(costEstimate.error);
-        return;
-      }
+      // if (costEstimate.error) {
+      //   console.error("Cost estimation failed:", costEstimate.error);
+      //   setError(costEstimate.error);
+      //   return;
+      // }
 
-      setCost(costEstimate.cost ?? "");
+      // setCost(costEstimate.cost ?? "");
 
       // Start streaming generation with instructions
       await generateDiagram(instructions, github_pat ?? undefined);

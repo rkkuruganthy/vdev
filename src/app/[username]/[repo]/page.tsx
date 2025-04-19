@@ -8,6 +8,11 @@ import Loading from "~/components/loading";
 import { useDiagram } from "~/hooks/useDiagram";
 import MermaidChart from "~/components/mermaid-diagram";
 import { ApiKeyButton } from "~/components/api-key-button";
+import { Card, CardContent } from "~/components/ui/card";
+
+const cleanResponse = (response: string): string => {
+  return response.replace(/<think>.*?<\/think>/gs, "").trim();
+};
 
 export default function Repo() {
   const [zoomingEnabled, setZoomingEnabled] = useState(false);
@@ -67,21 +72,29 @@ export default function Repo() {
       <div className="flex w-full max-w-4xl flex-col items-center gap-4 px-4">
         <Textarea
           placeholder="Ask a question about the repository..."
-          className="w-full"
+          className="flex-1 rounded-md border-[3px] border-black px-3 py-4 text-base font-bold shadow-[4px_4px_0_0_#000000] placeholder:text-base placeholder:font-normal placeholder:text-gray-700 sm:px-4 sm:py-6 sm:text-lg sm:placeholder:text-lg"
           rows={4}
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
         />
 
         <button
-          className="btn"
+          className="cursor-pointer border-[3px] border-black bg-purple-400 p-4 px-4 text-base text-black shadow-[4px_4px_0_0_#000000] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5 hover:transform hover:bg-purple-400 sm:p-6 sm:py-3 sm:px-6 sm:text-lg"
           onClick={handleAsk}
           disabled={localLoading || !question.trim()}
         >
           {localLoading ? "Asking..." : "Ask"}
         </button>
         {localError && <p className="text-red-500 mt-2">{localError}</p>}
-        {answer && <p className="text-green-500 mt-2">Answer: {answer}</p>}
+        {answer && (
+          <Card className="w-full max-w-4xl border-[3px] border-black bg-purple-100 p-4 shadow-[4px_4px_0_0_#000000]">
+            <CardContent>
+              <p className="text-base font-medium text-black">
+                {cleanResponse(answer)}
+              </p>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* <div className="mt-8 flex w-full flex-col items-center gap-8">

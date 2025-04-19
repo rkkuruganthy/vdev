@@ -8,6 +8,7 @@ from app.prompts import (
     SYSTEM_SECOND_PROMPT,
     SYSTEM_THIRD_PROMPT,
     ADDITIONAL_SYSTEM_INSTRUCTIONS_PROMPT,
+    SYSTEM_ASK_PROMPT
 )
 from pydantic import BaseModel
 from functools import lru_cache
@@ -246,7 +247,7 @@ async def ask_question(request: Request, body: ApiRequest):
         # Call the local LLM
         response = ""
         async for chunk in o1_service.call_o1_api_stream(
-            system_prompt="Answer the question based on the provided context.",
+            system_prompt=SYSTEM_ASK_PROMPT,
             data={"formatted_message": formatted_message},  # Pass the formatted message
         ):
             chunk_str = str(chunk)  # Ensure the chunk is a string

@@ -62,27 +62,23 @@ class GitHubService:
         return self.access_token
 
     def _get_headers(self):
-        # If no credentials are available, return basic headers
-        if (
-            not all([self.client_id, self.private_key, self.installation_id])
-            and not self.github_token
-        ):
-            return {"Accept": "application/vnd.github+json"}
-
-        # Use PAT if available
-        if self.github_token:
-            return {
+        headers = {}
+        if not all([self.client_id, self.private_key, self.installation_id]) and not self.github_token:
+            headers = {"Accept": "application/vnd.github+json"}
+        elif self.github_token:
+            headers = {
                 "Authorization": f"token {self.github_token}",
                 "Accept": "application/vnd.github+json",
             }
-
-        # Otherwise use app authentication
-        token = self._get_installation_token()
-        return {
-            "Authorization": f"Bearer {token}",
-            "Accept": "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2022-11-28",
-        }
+        else:
+            token = self._get_installation_token()
+            headers = {
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+            }
+        print(f"Headers: {headers}")
+        return headers
 
     def _check_repository_exists(self, username, repo):
         """
@@ -119,6 +115,10 @@ class GitHubService:
         Returns:
             str: A filtered and formatted string of file paths in the repository, one per line.
         """
+
+        print(f"Fetching file paths for {username}/{repo}")
+        print(f"Using GitHub token: {self.github_token}")
+        print(self)
 
         def should_include_file(path):
             # Patterns to exclude
@@ -166,6 +166,11 @@ class GitHubService:
             api_url = f"https://api.github.com/repos/{
                 username}/{repo}/git/trees/{branch}?recursive=1"
             response = requests.get(api_url, headers=self._get_headers())
+            
+            print(f"Fetching file tree for {username}/{repo} on branch {branch}")
+            print(f"API URL: {api_url}")
+            print(f"Response Status Code: {response.status_code}")
+            print(f"Response Body: {response.text}")
 
             if response.status_code == 200:
                 data = response.json()
@@ -183,6 +188,11 @@ class GitHubService:
             api_url = f"https://api.github.com/repos/{
                 username}/{repo}/git/trees/{branch}?recursive=1"
             response = requests.get(api_url, headers=self._get_headers())
+
+            print(f"Fetching file tree for {username}/{repo} on branch {branch}")
+            print(f"API URL: {api_url}")
+            print(f"Response Status Code: {response.status_code}")
+            print(f"Response Body: {response.text}")
 
             if response.status_code == 200:
                 data = response.json()

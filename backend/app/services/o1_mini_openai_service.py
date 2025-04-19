@@ -47,7 +47,7 @@ class OpenAIO1Service:
         try:
             print("Making synchronous call to the local LLM model...")
             response = self.client.chat.completions.create(
-                model="deepseek-r1-distill-llama-8b",
+                model="qwen2.5-coder-14b-instruct",
                 messages=[{"role": "user", "content": full_prompt}],
                 stream=True
             )
@@ -88,7 +88,7 @@ class OpenAIO1Service:
         try:
             print("Making streaming call to the local LLM model...")
             response = self.client.chat.completions.create(
-                model="deepseek-r1-distill-llama-8b",
+                model="qwen2.5-coder-14b-instruct",
                 messages=[{"role": "user", "content": full_prompt}],
                 stream=True  # Enable streaming
             )
