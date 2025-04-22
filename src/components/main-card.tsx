@@ -68,21 +68,37 @@ export default function MainCard({
       /^https?:\/\/github\.com\/([a-zA-Z0-9-_]+)\/([a-zA-Z0-9-_\.]+)\/?$/;
     const match = githubUrlPattern.exec(repoUrl.trim());
 
-    if (!match) {
+    const githubUrlPattern_tfs =
+      /^https?:\/\/github\.tfs\.toyota\.com\/([a-zA-Z0-9-_]+)\/([a-zA-Z0-9-_\.]+)\/?$/;
+    const match_tfs = githubUrlPattern_tfs.exec(repoUrl.trim());
+
+
+    if (!match && !match_tfs) {
       setError("Please enter a valid GitHub repository URL");
       return;
     }
 
-    const [, username, repo] = match || [];
-    if (!username || !repo) {
-      setError("Invalid repository URL format");
-      return;
+    if(match) {
+      const [, username, repo] = match || [];
+      if (!username || !repo) {
+        setError("Invalid repository URL format");
+        return;
+      }
+      const sanitizedUsername = encodeURIComponent(username);
+      const sanitizedRepo = encodeURIComponent(repo);
+      router.push(`/${sanitizedUsername}/${sanitizedRepo}`);
     }
 
-    const sanitizedUsername = encodeURIComponent(username);
-    const sanitizedRepo = encodeURIComponent(repo);
-
-    router.push(`/${sanitizedUsername}/${sanitizedRepo}`);
+    if(match_tfs) {
+      const [, username, repo] = match_tfs || [];
+      if (!username || !repo) {
+        setError("Invalid repository URL format");
+        return;
+      }
+      const sanitizedUsername = encodeURIComponent(username);
+      const sanitizedRepo = encodeURIComponent(repo);
+      router.push(`/${sanitizedUsername}/${sanitizedRepo}`);
+    }
   };
 
   const handleGenerate = () => {
@@ -92,21 +108,37 @@ export default function MainCard({
       /^https?:\/\/github\.com\/([a-zA-Z0-9-_]+)\/([a-zA-Z0-9-_\.]+)\/?$/;
     const match = githubUrlPattern.exec(repoUrl.trim());
 
-    if (!match) {
+    const githubUrlPattern_tfs =
+      /^https?:\/\/github\.tfs\.toyota\.com\/([a-zA-Z0-9-_]+)\/([a-zA-Z0-9-_\.]+)\/?$/;
+    const match_tfs = githubUrlPattern_tfs.exec(repoUrl.trim());
+
+
+    if (!match && !match_tfs) {
       setError("Please enter a valid GitHub repository URL");
       return;
     }
 
-    const [, username, repo] = match || [];
-    if (!username || !repo) {
-      setError("Invalid repository URL format");
-      return;
+    if(match) {
+      const [, username, repo] = match || [];
+      if (!username || !repo) {
+        setError("Invalid repository URL format");
+        return;
+      }
+      const sanitizedUsername = encodeURIComponent(username);
+      const sanitizedRepo = encodeURIComponent(repo);
+      router.push(`/generate/${sanitizedUsername}/${sanitizedRepo}`);
     }
 
-    const sanitizedUsername = encodeURIComponent(username);
-    const sanitizedRepo = encodeURIComponent(repo);
-
-    router.push(`/generate/${sanitizedUsername}/${sanitizedRepo}`);
+    if(match_tfs) {
+      const [, username, repo] = match_tfs || [];
+      if (!username || !repo) {
+        setError("Invalid repository URL format");
+        return;
+      }
+      const sanitizedUsername = encodeURIComponent(username);
+      const sanitizedRepo = encodeURIComponent(repo);
+      router.push(`/generate/${sanitizedUsername}/${sanitizedRepo}`);
+    }
   };
 
   const handleExampleClick = (repoPath: string, e: React.MouseEvent) => {
