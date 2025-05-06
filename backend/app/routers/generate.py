@@ -8,7 +8,8 @@ from app.prompts import (
     SYSTEM_SECOND_PROMPT,
     SYSTEM_THIRD_PROMPT,
     ADDITIONAL_SYSTEM_INSTRUCTIONS_PROMPT,
-    SYSTEM_ASK_PROMPT
+    SYSTEM_ASK_PROMPT,
+    SYSTEM_GHERKIN_PROMPT  # Added SYSTEM_GHERKIN_PROMPT
 )
 from pydantic import BaseModel
 from functools import lru_cache
@@ -22,6 +23,14 @@ router = APIRouter(prefix="/generate", tags=["Local LLM"])
 
 # Initialize services
 o1_service = OpenAIO1Service()  # Use the updated OpenAIO1Service
+
+
+
+#### CHANGE THESE FOR GHERKIN ####
+hardcoded_file_path = "backend/app/services/github_service.py"  # Replace with the actual file path
+hardcoded_branch = "develop"  # Replace with the branch name if needed
+#### CHANGE THESE FOR GHERKIN ####
+
 
 
 # Cache GitHub data to avoid double API calls from cost and generate
@@ -261,6 +270,52 @@ async def ask_question(request: Request, body: ApiRequest):
 
     except Exception as e:
         return {"error": str(e)}
+
+
+@router.post("/gherkin")
+async def generate_gherkin(request: Request, body: ApiRequest):
+    """
+    Generate Gherkin scenarios using the local LLM and the SYSTEM_GHERKIN_PROMPT.
+    """
+    print(f"Received request for Gherkin generation with body: {body}")
+    try:
+        # Initialize GitHubService
+        github_service = GitHubService(pat=body.github_pat)
+
+        # Fetch file content using the GitHubService
+        try:
+            file_content = github_service.get_file_content(
+                username=body.username,
+                repo=body.repo,
+                file_path=hardcoded_file_path,
+                branch=hardcoded_branch,
+            )
+            print(f"Fetched file content from {hardcoded_file_path}:\n{file_content}")
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to fetch file content: {str(e)}"
+            )
+
+        # Format the input for the LLM
+        formatted_message = f"{SYSTEM_GHERKIN_PROMPT}\n\nCode:\n{file_content}"
+
+        # Call the local LLM
+        response = ""
+        async for chunk in o1_service.call_o1_api_stream(
+            system_prompt=SYSTEM_GHERKIN_PROMPT,
+            data={"formatted_message": formatted_message},
+        ):
+            chunk_str = str(chunk)  # Ensure the chunk is a string
+            print(f"Chunk received in /gherkin endpoint: {chunk_str}")  # Log each chunk
+            response += chunk_str
+            print(f"Updated response: {response}")  # Log the updated response
+
+        # Return the response
+        return {"gherkin_scenarios": response}
+
+    except Exception as e:
+        return {"error": str(e)}  # Return the error as a JSON response
 
 
 def format_user_message(data: dict) -> str:

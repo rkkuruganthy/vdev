@@ -205,3 +205,42 @@ export async function askQuestion(
     return { error: "Failed to ask question. Please try again later." };
   }
 }
+
+export async function generateGherkinScenarios(
+  username: string,
+  repo: string,
+  github_pat?: string,
+): Promise<{ gherkin_scenarios?: string; error?: string }> {
+  try {
+    const baseUrl =
+      process.env.NEXT_PUBLIC_API_DEV_URL ?? "http://localhost:5432";
+    const url = new URL(`${baseUrl}/generate/gherkin`);
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        username,
+        repo,
+        github_pat: github_pat,
+      }),
+    });
+
+    if (response.status === 429) {
+      return { error: "Rate limit exceeded. Please try again later." };
+    }
+
+    const data = await response.json();
+
+    if (data.error) {
+      return { error: data.error };
+    }
+
+    return { gherkin_scenarios: data.gherkin_scenarios };
+  } catch (error) {
+    console.error("Error generating Gherkin scenarios:", error);
+    return { error: "Failed to generate Gherkin scenarios. Please try again later." };
+  }
+}

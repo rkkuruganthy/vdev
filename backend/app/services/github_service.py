@@ -74,6 +74,7 @@ class GitHubService:
         # Use PAT if available
         if self.github_token:
             return {
+                
                 "Authorization": f"token {self.github_token}",
                 "Accept": "application/vnd.github+json",
             }
@@ -234,3 +235,47 @@ class GitHubService:
         data = response.json()
         readme_content = requests.get(data["download_url"]).text
         return readme_content
+
+    def get_file_content(self, username: str, repo: str, file_path: str, branch: str = "main") -> str:
+        """
+        Fetches the content of a specific file from a GitHub repository.
+
+        Args:
+            username (str): The GitHub username or organization name.
+            repo (str): The repository name.
+            file_path (str): The path to the file in the repository.
+            branch (str): The branch name (default is "main").
+
+        Returns:
+            str: The content of the file as plain text.
+
+        Raises:
+            ValueError: If the file does not exist or cannot be retrieved.
+            Exception: For other unexpected API errors.
+        """
+        # Construct the API URL for the file contents endpoint
+        api_url = f"https://api.github.com/repos/{username}/{repo}/contents/{file_path}?ref={branch}"
+        print(f"Fetching file content from: {api_url}")
+
+        # Make the request to the GitHub API
+        response = requests.get(api_url, headers=self._get_headers())
+
+        # Handle errors
+        if response.status_code == 404:
+            raise ValueError(f"File '{file_path}' not found in repository '{username}/{repo}' on branch '{branch}'.")
+        elif response.status_code != 200:
+            print(f"Error response: {response.status_code}, {response.json()}")
+            raise Exception(
+                f"Failed to fetch file content: {response.status_code}, {response.json()}"
+            )
+
+        # Parse the response JSON
+        data = response.json()
+
+        # Decode the file content (GitHub API returns base64-encoded content)
+        import base64
+        file_content = base64.b64decode(data["content"]).decode("utf-8")
+
+        # Save the file content as text
+        print(f"File content retrieved successfully for '{file_path}'.")
+        return file_content
