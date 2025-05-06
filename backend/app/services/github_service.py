@@ -7,6 +7,8 @@ import os
 
 load_dotenv()
 
+BASE_URL: str = "https://api.github.com"
+# BASE_URL: str = "https://github.tfs.toyota.com/api/v3"
 
 class GitHubService:
     def __init__(self, pat: str | None = None):
@@ -49,7 +51,7 @@ class GitHubService:
 
         jwt_token = self._generate_jwt()
         response = requests.post(
-            f"https://api.github.com/app/installations/{
+            f"{BASE_URL}/app/installations/{
                 self.installation_id}/access_tokens",
             headers={
                 "Authorization": f"Bearer {jwt_token}",
@@ -62,29 +64,33 @@ class GitHubService:
         return self.access_token
 
     def _get_headers(self):
-        headers = {}
-        if not all([self.client_id, self.private_key, self.installation_id]) and not self.github_token:
-            headers = {"Accept": "application/vnd.github+json"}
-        elif self.github_token:
-            headers = {
+        # If no credentials are available, return basic headers
+        if (
+            not all([self.client_id, self.private_key, self.installation_id])
+            and not self.github_token
+        ):
+            return {"Accept": "application/vnd.github+json"}
+
+        # Use PAT if available
+        if self.github_token:
+            return {
                 "Authorization": f"token {self.github_token}",
                 "Accept": "application/vnd.github+json",
             }
-        else:
-            token = self._get_installation_token()
-            headers = {
-                "Authorization": f"Bearer {token}",
-                "Accept": "application/vnd.github+json",
-                "X-GitHub-Api-Version": "2022-11-28",
-            }
-        print(f"Headers: {headers}")
-        return headers
+
+        # Otherwise use app authentication
+        token = self._get_installation_token()
+        return {
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        }
 
     def _check_repository_exists(self, username, repo):
         """
         Check if the repository exists using the GitHub API.
         """
-        api_url = f"https://api.github.com/repos/{username}/{repo}"
+        api_url = f"{BASE_URL}/repos/{username}/{repo}"
         response = requests.get(api_url, headers=self._get_headers())
 
         if response.status_code == 404:
@@ -96,7 +102,7 @@ class GitHubService:
 
     def get_default_branch(self, username, repo):
         """Get the default branch of the repository."""
-        api_url = f"https://api.github.com/repos/{username}/{repo}"
+        api_url = f"{BASE_URL}/repos/{username}/{repo}"
         response = requests.get(api_url, headers=self._get_headers())
 
         if response.status_code == 200:
@@ -115,10 +121,6 @@ class GitHubService:
         Returns:
             str: A filtered and formatted string of file paths in the repository, one per line.
         """
-
-        print(f"Fetching file paths for {username}/{repo}")
-        print(f"Using GitHub token: {self.github_token}")
-        print(self)
 
         def should_include_file(path):
             # Patterns to exclude
@@ -163,14 +165,9 @@ class GitHubService:
         # Try to get the default branch first
         branch = self.get_default_branch(username, repo)
         if branch:
-            api_url = f"https://api.github.com/repos/{
+            api_url = f"{BASE_URL}/repos/{
                 username}/{repo}/git/trees/{branch}?recursive=1"
             response = requests.get(api_url, headers=self._get_headers())
-            
-            print(f"Fetching file tree for {username}/{repo} on branch {branch}")
-            print(f"API URL: {api_url}")
-            print(f"Response Status Code: {response.status_code}")
-            print(f"Response Body: {response.text}")
 
             if response.status_code == 200:
                 data = response.json()
@@ -185,14 +182,9 @@ class GitHubService:
 
         # If default branch didn't work or wasn't found, try common branch names
         for branch in ["main", "master"]:
-            api_url = f"https://api.github.com/repos/{
+            api_url = f"{BASE_URL}/repos/{
                 username}/{repo}/git/trees/{branch}?recursive=1"
             response = requests.get(api_url, headers=self._get_headers())
-
-            print(f"Fetching file tree for {username}/{repo} on branch {branch}")
-            print(f"API URL: {api_url}")
-            print(f"Response Status Code: {response.status_code}")
-            print(f"Response Body: {response.text}")
 
             if response.status_code == 200:
                 data = response.json()
@@ -228,7 +220,7 @@ class GitHubService:
         self._check_repository_exists(username, repo)
 
         # Then attempt to fetch the README
-        api_url = f"https://api.github.com/repos/{username}/{repo}/readme"
+        api_url = f"{BASE_URL}/repos/{username}/{repo}/readme"
         response = requests.get(api_url, headers=self._get_headers())
 
         if response.status_code == 404:
