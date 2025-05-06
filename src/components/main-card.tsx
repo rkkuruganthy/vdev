@@ -52,6 +52,7 @@ export default function MainCard({
   useEffect(() => {
     if (username && repo) {
       setRepoUrl(`https://github.com/${username}/${repo}`);
+      // setRepoUrl(`https://github.tfs.toyota.com/${username}/${repo}`);
     }
   }, [username, repo]);
 
@@ -275,27 +276,6 @@ export default function MainCard({
                 </div>
               </>
             )}
-          </div>
-        )}
-
-        {/* Example Repositories */}
-        {isHome && (
-          <div className="space-y-2">
-            <div className="text-sm text-gray-700 sm:text-base">
-              Try these example repositories:
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(exampleRepos).map(([name, path]) => (
-                <Button
-                  key={name}
-                  variant="outline"
-                  className="border-2 border-black bg-purple-400 text-sm text-black transition-transform hover:-translate-y-0.5 hover:transform hover:bg-purple-300 sm:text-base"
-                  onClick={(e) => handleExampleClick(path, e)}
-                >
-                  {name}
-                </Button>
-              ))}
-            </div>
           </div>
         )}
       </form>

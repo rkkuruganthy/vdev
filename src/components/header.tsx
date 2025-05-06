@@ -42,7 +42,7 @@ export function Header() {
         <Link href="/" className="flex items-center">
           <span className="text-lg font-semibold sm:text-xl">
             <span className="text-black transition-colors duration-200 hover:text-gray-600">
-              Git
+              Repo
             </span>
             <span className="text-purple-600 transition-colors duration-200 hover:text-purple-500">
               Diagram
@@ -51,17 +51,6 @@ export function Header() {
         </Link>
         <nav className="flex items-center gap-3 sm:gap-6">
           <span
-            onClick={() => setIsApiKeyDialogOpen(true)}
-            className="cursor-pointer text-sm font-medium text-black transition-transform hover:translate-y-[-2px] hover:text-purple-600"
-          >
-            <span className="flex items-center sm:hidden">
-              <span>API Key</span>
-            </span>
-            <span className="hidden items-center gap-1 sm:flex">
-              <span>API Key</span>
-            </span>
-          </span>
-          <span
             onClick={() => setIsPrivateReposDialogOpen(true)}
             className="cursor-pointer text-sm font-medium text-black transition-transform hover:translate-y-[-2px] hover:text-purple-600"
           >
@@ -69,16 +58,12 @@ export function Header() {
             <span className="hidden sm:inline">Private Repos</span>
           </span>
           <Link
-            href="https://github.com/ahmedkhaleel2004/gitdiagram"
+            href="https://github.com/rkkuruganthy/vdev"
             className="flex items-center gap-1 text-sm font-medium text-black transition-transform hover:translate-y-[-2px] hover:text-purple-600 sm:gap-2"
           >
             <FaGithub className="h-5 w-5" />
             <span className="hidden sm:inline">GitHub</span>
           </Link>
-          <span className="flex items-center gap-1 text-sm font-medium text-black">
-            <span className="text-amber-400">★</span>
-            {formatStarCount(starCount)}
-          </span>
         </nav>
 
         <PrivateReposDialog

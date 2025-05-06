@@ -51,7 +51,7 @@ export const metadata: Metadata = {
     title: "GitDiagram - Repository to Diagram in Seconds",
     description:
       "Turn any GitHub repository into an interactive diagram for visualization.",
-    siteName: "GitDiagram",
+    siteName: "Repo to Diagram",
     images: [
       {
         url: "/og-image.png", // You'll need to create this image
